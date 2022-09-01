@@ -1,0 +1,7 @@
+statsmodels==0.10.2
+scikit-learn==1.0.2
+yfinance
+flask
+mlflow
+hyperopt
+pmdarima
