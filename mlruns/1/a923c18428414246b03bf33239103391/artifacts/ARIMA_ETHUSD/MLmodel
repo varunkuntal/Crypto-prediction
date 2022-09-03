@@ -1,0 +1,16 @@
+artifact_path: ARIMA_ETHUSD
+flavors:
+  pmdarima:
+    code: null
+    data: model.pmd
+    model_type: ARIMAResultsWrapper
+    pmdarima_version: 2.0.1
+  python_function:
+    data: model.pmd
+    env: conda.yaml
+    loader_module: mlflow.pmdarima
+    python_version: 3.7.13
+mlflow_version: 1.28.0
+model_uuid: 24a1a3299c754e9ca7a9b133e6f835bf
+run_id: a923c18428414246b03bf33239103391
+utc_time_created: '2022-09-03 12:52:58.599670'

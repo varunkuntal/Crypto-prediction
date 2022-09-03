@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Flask Highcharts Live Data Demo</title>
+	
+	<!-- Boot Strap css Links -->
+	<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous"/>
+	
+	    <!-- JQuery links  -->
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
+
+    <!--Added -->
+
+	
+	<link rel= "stylesheet" type= "text/css" href= "{{ url_for('static',filename='css/gui.css') }}">
+	<link rel= "stylesheet" type= "text/css" href= "{{ url_for('static',filename='css/popup.css') }}">
+
+    <script src="{{ url_for('static', filename="js/highstock.js") }}"></script>
+    <script src="{{ url_for('static', filename="js/data.js") }}"></script>
+
+    <script src="{{ url_for('static', filename="js/indicators-all.js") }}"></script>
+
+    <script src="{{ url_for('static', filename="js/drag-panes.js") }}"></script>
+    <script src="{{ url_for('static', filename="js/annotations-advanced.js") }}"></script>
+    <script src="{{ url_for('static', filename="js/price-indicator.js") }}"></script>
+    <script src="{{ url_for('static', filename="js/full-screen.js") }}"></script>
+
+    <script src="{{ url_for('static', filename="js/stock-tools.js") }}"></script>
+	
+	<script src="{{ url_for('static', filename="js/highcharts.js") }}"></script>
+	
+	
+</head>
+
+<body>
+
+<style>
+
+.text-center {
+	text-align: center;
+}
+
+select
+{
+  margin: 0 auto;
+  display: block;
+}
+
+.btn-dark
+{
+  margin: 0 auto;
+  display: block;
+}
+
+	.user-form {
+		background-color: #c6c5d4;
+		height: 270px;
+		display: flex;
+		justify-content: center;
+		align-items: center;
+
+	}
+	
+	.prediction-table {
+		background-color: white;
+	}
+	
+	#highchart-eth {
+	height:100%;
+    width:100%;
+
+	
+	}
+
+</style>
+
+
+<div class="container">
+<nav class="navbar navbar-light bg-light">
+
+<a href="/" class="navbar-brand mb-0 h1"/>
+<img src="{{ url_for('static', filename='images/eth-logo.png') }}" width="240" height="60" />
+
+</a>
+
+</nav>
+
+</div>
+
+<div class="container" id="highchart-eth">
+<div class="row">
+
+<div class="col-sm-2"></div>
+
+	<div class="jumbotron">
+		<div id="container" class="chart"></div>
+	</div>
+
+</div>
+</div> 
+
+<div class="container">
+<div class="row">
+	<div class="col-sm-4 user-form">
+	
+	<form class="form-group " method="POST" action="/predict" name="user-form">
+	<h4 class="text-center">Predict Future Timestamps <br>(in Days)</h4>
+	<br>
+	<select class="selectpicker" data-live-search="true" name="timestamp" >
+
+                <option selected="selected">1</option>
+				<option>2</option>
+				<option>3</option>
+				<option>4</option>
+				<option>5</option>
+
+    </select> 
+	<br>
+	<input type="submit" value="Submit" class="btn btn-dark" style="color:white;">
+    </form>
+	</div> 
+	
+	{% if show_results == "true" %}
+	<div class="col-sm-8 prediction-table">
+	
+	
+	
+	<table class="table">
+		<thead>
+			<tr>
+			<th scope="col">Date</th>
+			<th scope="col">ETH-USD</th>
+		    </tr>
+		</thead>
+		<tbody>
+	
+		
+		{%for row in datelist%}
+		<tr>
+		<th> {{ row[1] }} </th>
+		<td> {{ row[0] }} </td>
+		</tr>
+		
+		{% endfor %}
+		
+	{% else %}
+	<br>
+	{% endif %}
+	</tbody>
+	</table>
+	</div> 
+</div>
+</div>
+
+<!-- <script type="text/javascript">
+
+	var xx = {{ datelist }}
+	console.log(xx.getOwnPropertyNames())
+      $(document).ready(function(){
+        $("form[name='user-form']").submit(function(event) {
+          event.preventDefault();
+          $.post("/predict", $(this).serialize())
+            .done(function(d) {
+              $("#predictions").text(xx);
+            })
+            .fail(function() {
+              $("#predictions").html("An error has occurred.");
+            });
+        });
+      });
+    </script> -->
+
+
+
+<!-- Bootstraps Java Scipts Links -->
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM" crossorigin="anonymous"></script>
+</body>
+
+</html>
