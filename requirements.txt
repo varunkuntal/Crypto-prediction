@@ -5,3 +5,4 @@ flask
 mlflow
 hyperopt
 pmdarima
+prefect==2.0b5
