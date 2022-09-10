@@ -3,8 +3,8 @@ warnings.simplefilter(action='ignore', category=FutureWarning)
 import warnings
 from statsmodels.tools.sm_exceptions import ConvergenceWarning
 warnings.simplefilter('ignore', ConvergenceWarning)
-warnings.filterwarnings('ignore', 'statsmodels.tsa.arima_model.ARMA', FutureWarning)
-warnings.filterwarnings('ignore', 'statsmodels.tsa.arima_model.ARIMA', FutureWarning)
+warnings.filterwarnings('ignore', 'statsmodels.tsa.arima.model', FutureWarning)
+warnings.filterwarnings('ignore', 'statsmodels.tsa.arima.model', FutureWarning)
 
 import numpy as np
 import yfinance as yf
@@ -20,10 +20,34 @@ from mlflow.entities import ViewType
 from mlflow.tracking import MlflowClient
 import mlflow.pyfunc
 
+from google.cloud import storage
+
 MLFLOW_TRACKING_URI = 'http://127.0.0.1:5000'
-EXPERIMENT_NAME = "arima-ethusdt"
+EXPERIMENT_NAME = f"arima-ethusdt_{date.today().strftime('%d_%m_%Y')}"
 mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
 mlflow.set_experiment(EXPERIMENT_NAME)
+
+mlflow.statsmodels.autolog(log_models=True)
+
+# def upload_blob(bucket_name="zc-bucket", source_file_name="model.pkl", destination_blob_name="mlruns"):
+#     """Uploads a file to the bucket."""
+#     # The ID of your GCS bucket
+#     # bucket_name = "your-bucket-name"
+#     # The path to your file to upload
+#     # source_file_name = "local/path/to/file"
+#     # The ID of your GCS object
+#     # destination_blob_name = "storage-object-name"
+
+#     storage_client = storage.Client()
+#     bucket = storage_client.bucket(bucket_name)
+#     blob = bucket.blob(destination_blob_name)
+
+#     blob.upload_from_filename(source_file_name)
+
+#     print(
+#         f"File {source_file_name} uploaded to {destination_blob_name}."
+#     )
+
 
 # Download cryptocurrency data (2017 - 2022)
 def read_data(ticker='ETH-USD'):
@@ -52,7 +76,7 @@ def train_model_search():
     
 
     # Using GRID Search instead of Randomized Hyperopt as number of prameters are lesser
-    ps = range(2, 5)
+    ps = range(2, 3)
     qs = range(0, 1)
     d=1
     parameters = product(ps, qs)
@@ -67,31 +91,34 @@ def train_model_search():
             mlflow.log_param('param-qs', param[1])
             n_test_obs = len(testing_data)
 
-            try:
-                for i in range(n_test_obs):
-                    model = ARIMA(endog=training_data, order = (param[0], d, param[1]))
-                    model_fit = model.fit()
-                    output = model_fit.forecast()
-                    yhat = output[0]
-                    model_predictions.append(yhat)
-                    actual_test_value = testing_data[i]
-                    # Rolling prediction one day ahead and appending result to training + reiterate
-                    training_data.append(actual_test_value)
+            #try:
+            for i in range(n_test_obs):
+                model = ARIMA(endog=training_data, order = (param[0], d, param[1]))
+                model_fit = model.fit()
+                output = model_fit.forecast()
+                yhat = output[0]
+                model_predictions.append(yhat)
+                actual_test_value = testing_data[i]
+                # Rolling prediction one day ahead and appending result to training + reiterate
+                training_data.append(actual_test_value)
 
-                print(f"Model Predictions, Testing Data = {len(model_predictions)}, {len(testing_data)}")
-                mape_val = mape(model_predictions, testing_data)
+            print(f"Model Predictions, Testing Data = {len(model_predictions)}, {len(testing_data)}")
+            mape_val = mape(model_predictions, testing_data)
 
-                mlflow.log_metric("AIC", model_fit.aic)
-                mlflow.log_metric("BIC", model_fit.bic)
-                mlflow.log_metric("mape", mape_val)
-                mlflow.pmdarima.log_model(model_fit, artifact_path="ARIMA_ETHUSD")
+            model_fit.save('model.pkl')
 
-            except Exception as e:
-                print(e)
-                print("Logging AIC, BIC, mape as inf")
-                mlflow.log_metric("AIC", float('inf'))
-                mlflow.log_metric("BIC", float('inf'))
-                mlflow.log_metric("mape", float('inf'))
+            mlflow.log_metric("AIC", model_fit.aic)
+            mlflow.log_metric("BIC", model_fit.bic)
+            mlflow.log_metric("mape", mape_val)
+                
+                # mlflow.pmdarima.log_model(model_fit, artifact_path="ARIMA_ETHUSD")
+
+            # except Exception as e:
+            #     print(e)
+            #     print("Logging AIC, BIC, mape as inf")
+            #     mlflow.log_metric("AIC", float('inf'))
+            #     mlflow.log_metric("BIC", float('inf'))
+            #     mlflow.log_metric("mape", float('inf'))
 
     return 
 
@@ -118,11 +145,23 @@ def register_model():
 
             model_details = mlflow.register_model(model_uri=model_uri, name=model_name)
 
+
+
             client.transition_model_version_stage(
             name=model_details.name,
             version=model_details.version,
             stage='staging',
             )
+
+            model_version_details = client.get_model_version(
+            name=model_details.name,
+            version=model_details.version,
+            )
+
+            latest_version_info = client.get_latest_versions(model_name, stages=["staging"])
+            latest_production_version = latest_version_info[0].version
+            print("The latest production version of the model '%s' is '%s'." % (model_name, latest_production_version))
+
 
     else:
         print(f"No runs found in the experiment {EXPERIMENT_NAME}")

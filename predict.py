@@ -1,6 +1,6 @@
 import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
-from statsmodels.tsa.arima_model import ARIMAResults
+from statsmodels.tsa.arima.model import ARIMAResults
 from flask import Flask, request, jsonify, render_template
 from datetime import datetime, timedelta
 import datetime
@@ -22,10 +22,23 @@ def load_model():
     # model = ARIMAResults.load('model/model.pkl')
     artifact_path = "ARIMA_ETHUSD"
     model_name = "ARIMA-FORECASTING-MODEL"
-    model_version = 1
+
+    latest_version_info = client.get_latest_versions(model_name, stages=["staging"])
+    # logged_model = f'runs:/{latest_version_info[0].run_id}/model'
+    # loaded_model = mlflow.statsmodels.load_model(logged_model)
+
+    model_version = latest_version_info[0].version
     
-    model = mlflow.pmdarima.load_model(model_uri=f"models:/{model_name}/{model_version}")
-    return model
+
+    logged_model = f'runs:/{latest_version_info[0].run_id}/model'
+
+    print(f"Logged Model: {logged_model}")
+
+    # f"models:/{model_name}/{model_version}"
+
+    loaded_model = mlflow.statsmodels.load_model(logged_model)
+
+    return loaded_model
 
 def newest(path):
     files = os.listdir(path)
@@ -46,6 +59,7 @@ def landing_page():
 def pipe():
 
     latest_file = newest(r"data")
+    print(f"Newest file: {latest_file}")
     df = pd.read_csv(latest_file)
     df = list(map(list, df.itertuples(index=False)))
     return {"res":df}
