@@ -23,7 +23,7 @@ import mlflow.pyfunc
 from google.cloud import storage
 
 MLFLOW_TRACKING_URI = 'http://127.0.0.1:5000'
-EXPERIMENT_NAME = f"arima-ethusdt_{date.today().strftime('%d_%m_%Y')}"
+EXPERIMENT_NAME = f"arima-ethusdt"#_{date.today().strftime('%d_%m_%Y')}"
 mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
 mlflow.set_experiment(EXPERIMENT_NAME)
 
@@ -105,7 +105,7 @@ def train_model_search():
             print(f"Model Predictions, Testing Data = {len(model_predictions)}, {len(testing_data)}")
             mape_val = mape(model_predictions, testing_data)
 
-            model_fit.save('model.pkl')
+            model_fit.save('model/model.pkl')
 
             mlflow.log_metric("AIC", model_fit.aic)
             mlflow.log_metric("BIC", model_fit.bic)

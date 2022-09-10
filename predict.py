@@ -1,6 +1,6 @@
 import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
-from statsmodels.tsa.arima.model import ARIMAResults
+from statsmodels.tsa.arima.model  import ARIMAResults
 from flask import Flask, request, jsonify, render_template
 from datetime import datetime, timedelta
 import datetime
@@ -19,24 +19,31 @@ mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
 client = MlflowClient(tracking_uri=MLFLOW_TRACKING_URI)
 
 def load_model():
-    # model = ARIMAResults.load('model/model.pkl')
+    # 
     artifact_path = "ARIMA_ETHUSD"
     model_name = "ARIMA-FORECASTING-MODEL"
 
-    latest_version_info = client.get_latest_versions(model_name, stages=["staging"])
-    # logged_model = f'runs:/{latest_version_info[0].run_id}/model'
-    # loaded_model = mlflow.statsmodels.load_model(logged_model)
+    print('Before fetching version')
+    try:
 
-    model_version = latest_version_info[0].version
-    
+        latest_version_info = client.get_latest_versions(model_name, stages=["staging"])
+        # logged_model = f'runs:/{latest_version_info[0].run_id}/model'
+        # loaded_model = mlflow.statsmodels.load_model(logged_model)
 
-    logged_model = f'runs:/{latest_version_info[0].run_id}/model'
+        model_version = latest_version_info[0].version
+        
+        logged_model = f'runs:/{latest_version_info[0].run_id}/model'
 
-    print(f"Logged Model: {logged_model}")
+        print(f"Logged Model: {logged_model}")
 
-    # f"models:/{model_name}/{model_version}"
+        # f"models:/{model_name}/{model_version}"
 
-    loaded_model = mlflow.statsmodels.load_model(logged_model)
+        print('After fetching version')
+        loaded_model = mlflow.statsmodels.load_model(logged_model)
+        print('end of model')
+
+    except:
+        loaded_model = ARIMAResults.load('model/model.pkl')
 
     return loaded_model
 
@@ -81,6 +88,8 @@ def predict_endpoint():
     current = datetime.datetime(year, month, day)
 
     datelist = []
+
+    print(f"Predictions are: {pred}")
 
     for i in range(1, int(timestamp)+1):
         datelist.append([pred[i-1], (current+timedelta(days=i)).date()])

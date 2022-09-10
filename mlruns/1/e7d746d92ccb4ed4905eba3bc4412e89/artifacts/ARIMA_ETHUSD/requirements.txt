@@ -1,0 +1,5 @@
+mlflow
+pickle5==0.0.12
+pmdarima==1.6.0
+psutil==5.9.2
+typing-extensions==4.3.0
