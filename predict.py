@@ -13,10 +13,29 @@ env = jinja2.Environment()
 env.globals.update(zip=zip)
 import mlflow
 from mlflow.tracking import MlflowClient
+import yfinance as yf
+import os
 
 MLFLOW_TRACKING_URI = "http://127.0.0.1:5000"
 mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
 client = MlflowClient(tracking_uri=MLFLOW_TRACKING_URI)
+
+def download_ticker(ticker='ETH-USD'):
+    
+    today = datetime.date.today()
+    # datetoday = today.strftime("%B %d, %Y")
+    datetoday = today.strftime("%d_%m_%Y")
+    if os.path.exists("data/" + ticker+"_"+datetoday+".csv"):
+        return
+
+    df = yf.download(ticker)
+    df = df.reset_index()
+    df['Timestamp'] = df.Date.apply(lambda x: pd.Timestamp(x).timestamp())
+    df = df.drop(labels=['Date', 'Adj Close'], axis=1)
+    df = df[['Timestamp', 'Open', 'High', 'Low', 'Close', 'Volume']]
+    df['Timestamp'] = df['Timestamp'].apply(lambda x: int(str(x)[:-2] + "000"))
+    
+    df.to_csv("data/" + ticker+"_"+today.strftime("%d_%m_%Y")+".csv", index=False)
 
 def load_model():
     # 
@@ -60,6 +79,7 @@ app = Flask('crypto-prediction')
 
 @app.route('/')
 def landing_page():
+    download_ticker()
     return render_template('index.html', datelist="", show_results="false")
 
 @app.route('/pipe', methods=["GET", "POST"])
