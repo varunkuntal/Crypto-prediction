@@ -34,6 +34,9 @@ Index
 
     Model will be served on `http://localhost:9696` or `http://127.0.0.1:9696`.
 
+![Flask Server 1](static/images/1.jpg)
+![Flask Server 2](static/images/2.jpg)
+
 4a. To train, track & resgiter models using MLFlow server, run commnd in terminal:
 
     mlflow server --host=0.0.0.0 --port=5000 --backend-store-uri=sqlite:///mlflow.db --default-artifact-root=file:mlruns
@@ -45,6 +48,8 @@ Index
     Now we can train the ARIMA model using following command in terminal:
     
     python model_training.py
+
+![MLFlow Server 1](static/images/3.jpg)
     
 
 4b. Alternatively, train the model without tracking server by directly running:
