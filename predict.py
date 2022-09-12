@@ -15,10 +15,14 @@ import mlflow
 from mlflow.tracking import MlflowClient
 import yfinance as yf
 import os
+import requests
 
 MLFLOW_TRACKING_URI = "http://127.0.0.1:5000"
 mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
 client = MlflowClient(tracking_uri=MLFLOW_TRACKING_URI)
+
+
+
 
 def download_ticker(ticker='ETH-USD'):
     
@@ -37,21 +41,39 @@ def download_ticker(ticker='ETH-USD'):
     
     df.to_csv("data/" + ticker+"_"+today.strftime("%d_%m_%Y")+".csv", index=False)
 
+    # Remove historical files
+    filelist = [ f for f in os.listdir("data/") if not f.endswith(datetoday+".csv") ]
+    for f in filelist:
+        os.remove(os.path.join("data/", f))
+
+
+def get_latest_info():
+    model_name = "ARIMA-FORECASTING-MODEL"
+    latest_version_info = client.get_latest_versions(model_name, stages=["staging"])
+    model_version = latest_version_info[0].version
+    logged_model = f'runs:/{latest_version_info[0].run_id}/model'
+    return logged_model
+
 def load_model():
-    # 
     artifact_path = "ARIMA_ETHUSD"
     model_name = "ARIMA-FORECASTING-MODEL"
 
     print('Before fetching version')
-    try:
 
-        latest_version_info = client.get_latest_versions(model_name, stages=["staging"])
+    try:
+        print("Page request initiated")
+        page = requests.get('http://127.0.0.1:5000')
+        print("Request completed!!!!", page.status_code)
+    except Exception as e:
+        print("Server Not running")
+        page = None
+
+    if page and page.status_code == 200:
+
         # logged_model = f'runs:/{latest_version_info[0].run_id}/model'
         # loaded_model = mlflow.statsmodels.load_model(logged_model)
 
-        model_version = latest_version_info[0].version
-        
-        logged_model = f'runs:/{latest_version_info[0].run_id}/model'
+        logged_model = get_latest_info()
 
         print(f"Logged Model: {logged_model}")
 
@@ -61,7 +83,8 @@ def load_model():
         loaded_model = mlflow.statsmodels.load_model(logged_model)
         print('end of model')
 
-    except:
+    else:
+
         loaded_model = ARIMAResults.load('model/model.pkl')
 
     return loaded_model
