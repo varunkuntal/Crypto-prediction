@@ -1,8 +1,6 @@
-statsmodels==0.10.2
+statsmodels==0.12.0
 scikit-learn==1.0.2
-yfinance
-flask
-mlflow
-hyperopt
-pmdarima
-prefect==2.0b5
+yfinance==0.1.74
+Flask==2.2.2
+mlflow==1.28.0
+
