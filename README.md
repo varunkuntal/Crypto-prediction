@@ -6,7 +6,7 @@ Index
 - [Instruction to Run Code](#instructions-to-run-the-code)
     1. [Running via script](#running-on-the-cloud-or-locally)
     2. [Running as a containerized service](#running-as-a-containerized-service)
-- [Some points on development](#some-points-on-development)
+- [Some points on development](#some-points-on-the-development)
 
 ## Problem Description
 
