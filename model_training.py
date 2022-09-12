@@ -1,60 +1,41 @@
-import warnings
-warnings.simplefilter(action='ignore', category=FutureWarning)
-import warnings
-from statsmodels.tools.sm_exceptions import ConvergenceWarning
-warnings.simplefilter('ignore', ConvergenceWarning)
-warnings.filterwarnings('ignore', 'statsmodels.tsa.arima.model', FutureWarning)
-warnings.filterwarnings('ignore', 'statsmodels.tsa.arima.model', FutureWarning)
-
 import numpy as np
 import yfinance as yf
-from statsmodels.tsa.arima.model import ARIMA
-from sklearn.metrics import mean_squared_error, mean_absolute_error
-from sklearn.model_selection import train_test_split
 import pandas as pd
 from datetime import date
+import requests
 
 from itertools import product
+from statsmodels.tsa.arima.model import ARIMA
+from sklearn.model_selection import train_test_split
 import mlflow
 from mlflow.entities import ViewType
 from mlflow.tracking import MlflowClient
-import mlflow.pyfunc
-
-from google.cloud import storage
 
 MLFLOW_TRACKING_URI = 'http://127.0.0.1:5000'
-EXPERIMENT_NAME = f"arima-ethusdt"#_{date.today().strftime('%d_%m_%Y')}"
-mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
-mlflow.set_experiment(EXPERIMENT_NAME)
+EXPERIMENT_NAME = f"arima-ethusdt"
 
-mlflow.statsmodels.autolog(log_models=True)
+# Check if MLFlow server running on localhost:5000 
+try:
+    page = requests.get('http://127.0.0.1:5000')
+    print("MLFlow server response: ", page.status_code)
+except Exception as e:
+    print("MLFlow Not running")
+    page = None
 
-# def upload_blob(bucket_name="zc-bucket", source_file_name="model.pkl", destination_blob_name="mlruns"):
-#     """Uploads a file to the bucket."""
-#     # The ID of your GCS bucket
-#     # bucket_name = "your-bucket-name"
-#     # The path to your file to upload
-#     # source_file_name = "local/path/to/file"
-#     # The ID of your GCS object
-#     # destination_blob_name = "storage-object-name"
-
-#     storage_client = storage.Client()
-#     bucket = storage_client.bucket(bucket_name)
-#     blob = bucket.blob(destination_blob_name)
-
-#     blob.upload_from_filename(source_file_name)
-
-#     print(
-#         f"File {source_file_name} uploaded to {destination_blob_name}."
-#     )
+if page and page.status_code == 200:
+    mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
+    mlflow.set_experiment(EXPERIMENT_NAME)
+    mlflow.statsmodels.autolog(log_models=True)
 
 
-# Download cryptocurrency data (2017 - 2022)
 def read_data(ticker='ETH-USD'):
+    # Download cryptocurrency data (2017 - 2022)
+
     today = date.today()
     datetoday = today.strftime("%B %d, %Y")
     print(f"\nDownloading the dataset for {ticker} on {datetoday} ...\n\n")
     df = yf.download(ticker)
+    #Process dataframe for Highcharts graph to display properly
     df = df.reset_index()
     df['Timestamp'] = df.Date.apply(lambda x: pd.Timestamp(x).timestamp())
     df = df.drop(labels=['Date', 'Adj Close'], axis=1)
@@ -63,20 +44,22 @@ def read_data(ticker='ETH-USD'):
     
     df.to_csv("data/" + ticker+"_"+today.strftime("%d_%m_%Y")+".csv", index=False)
 
-    # 10% data to test
+    # Train-Test Split
     training_data, testing_data = train_test_split(df, test_size=0.1, shuffle=False)
     training_data, testing_data = list(training_data['Close']), list(testing_data['Close'])
     return df, training_data, testing_data
 
+
 def mape(model_predictions, testing_data):
+    # Mean Absolute Percentage Error for time series
     return np.mean(np.abs(np.array(model_predictions) - np.array(testing_data)) / np.abs(testing_data))
+
 
 def train_model_search():
     df, training_data, testing_data = read_data()
     
-
-    # Using GRID Search instead of Randomized Hyperopt as number of prameters are lesser
-    ps = range(2, 3)
+    # Using GRID Search for (p,d,q) instead of Randomized Hyperopt as number of prameters are lesser
+    ps = range(2, 4)
     qs = range(0, 1)
     d=1
     parameters = product(ps, qs)
@@ -91,38 +74,35 @@ def train_model_search():
             mlflow.log_param('param-qs', param[1])
             n_test_obs = len(testing_data)
 
-            #try:
-            for i in range(n_test_obs):
-                model = ARIMA(endog=training_data, order = (param[0], d, param[1]))
-                model_fit = model.fit()
-                output = model_fit.forecast()
-                yhat = output[0]
-                model_predictions.append(yhat)
-                actual_test_value = testing_data[i]
-                # Rolling prediction one day ahead and appending result to training + reiterate
-                training_data.append(actual_test_value)
+            try:
+                for i in range(n_test_obs):
+                    model = ARIMA(endog=training_data, order = (param[0], d, param[1]))
+                    model_fit = model.fit()
+                    output = model_fit.forecast()
+                    yhat = output[0]
+                    model_predictions.append(yhat)
+                    actual_test_value = testing_data[i]
+                    # Rolling prediction one day ahead and appending result to training + reiterate
+                    training_data.append(actual_test_value)
 
-            print(f"Model Predictions, Testing Data = {len(model_predictions)}, {len(testing_data)}")
-            mape_val = mape(model_predictions, testing_data)
+                print(f"Model Predictions, Testing Data = {len(model_predictions)}, {len(testing_data)}")
+                mape_val = mape(model_predictions, testing_data)
 
-            model_fit.save('model/model.pkl')
+                model_fit.save('model/model.pkl')
 
-            mlflow.log_metric("AIC", model_fit.aic)
-            mlflow.log_metric("BIC", model_fit.bic)
-            mlflow.log_metric("mape", mape_val)
+                mlflow.log_metric("mape", mape_val)
                 
-                # mlflow.pmdarima.log_model(model_fit, artifact_path="ARIMA_ETHUSD")
-
-            # except Exception as e:
-            #     print(e)
-            #     print("Logging AIC, BIC, mape as inf")
-            #     mlflow.log_metric("AIC", float('inf'))
-            #     mlflow.log_metric("BIC", float('inf'))
-            #     mlflow.log_metric("mape", float('inf'))
+            except Exception as e:
+                print(f"Error: {e}")
+                mlflow.log_metric("AIC", float('inf'))
+                mlflow.log_metric("BIC", float('inf'))
+                mlflow.log_metric("mape", float('inf'))
 
     return 
 
+
 def register_model():
+    # Regsiter best model and promote to Staging via MLFlow API
 
     client = MlflowClient(tracking_uri=MLFLOW_TRACKING_URI)
     experiment = client.get_experiment_by_name(EXPERIMENT_NAME)
@@ -145,8 +125,6 @@ def register_model():
 
             model_details = mlflow.register_model(model_uri=model_uri, name=model_name)
 
-
-
             client.transition_model_version_stage(
             name=model_details.name,
             version=model_details.version,
@@ -162,7 +140,6 @@ def register_model():
             latest_production_version = latest_version_info[0].version
             print("The latest production version of the model '%s' is '%s'." % (model_name, latest_production_version))
 
-
     else:
         print(f"No runs found in the experiment {EXPERIMENT_NAME}")
         
@@ -175,12 +152,12 @@ def train():
     df, training_data, testing_data = read_data()
     n_test_obs = len(testing_data)
 
-    print("\nTraining the model...\n")
+    print("\nModel tracking not running! Training the model & saving in ./model...\n")
     for i in range(n_test_obs):
         model = ARIMA(training_data, order = (4,1,0))
-        model_fit = model.fit(disp=0)
+        model_fit = model.fit()
         output = model_fit.forecast()
-        yhat = list(output[0])[0]
+        yhat = output[0]
         model_predictions.append(yhat)
         actual_test_value = testing_data[i]
         # Rolling Training by predicting one day ahead and appending to 
@@ -191,20 +168,17 @@ def train():
     return model_fit, mape_val
 
 def main():
-    # df, training_data, testing_data = read_data()
-    mlflow.set_tracking_uri("sqlite:///mlflow.db")
-    mlflow.set_experiment("arima-ethusdt")
-    print(f"Searching Best Model ...")
-    train_model_search()
-    print(f"Registering Model.")
-    register_model()
-    print("Done.")
-    # model, mape_val = train()
-    #print(f"MAPE = {mape_val}\n\nSaving the model now...")
-    #model.save('model/model.pkl')
-    #print("Saved.")
-
-    #return mape_val
+    if page and page.status_code == 200:
+        print("Training & registering best model to staging...")
+        train_model_search()
+        register_model()
+        print("Done")
+    else:
+        model, mape_val = train()
+        print(f"MAPE = {mape_val}\nSaving the model now...")
+        model.save('model/model.pkl')
+        print("Done.")
+        return mape_val
 
 if __name__ == '__main__':
     main()

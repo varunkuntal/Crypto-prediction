@@ -18,13 +18,22 @@ import os
 import requests
 
 MLFLOW_TRACKING_URI = "http://127.0.0.1:5000"
-mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
-client = MlflowClient(tracking_uri=MLFLOW_TRACKING_URI)
 
+try:
+    print("Page request initiated")
+    page = requests.get('http://127.0.0.1:5000')
+    print(f"MLFlow server status code: {page.status_code}")
+except Exception as e:
+    print("Server Not running")
+    page = None
 
+if page and page.status_code:
+    mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
+    client = MlflowClient(tracking_uri=MLFLOW_TRACKING_URI)
 
 
 def download_ticker(ticker='ETH-USD'):
+    # Downloads latest daily ticker data if not present, processes data for Highcharts.js & removes old files
     
     today = datetime.date.today()
     # datetoday = today.strftime("%B %d, %Y")
@@ -48,6 +57,7 @@ def download_ticker(ticker='ETH-USD'):
 
 
 def get_latest_info():
+    # Fetch latest model promoted to Staging
     model_name = "ARIMA-FORECASTING-MODEL"
     latest_version_info = client.get_latest_versions(model_name, stages=["staging"])
     model_version = latest_version_info[0].version
@@ -58,33 +68,21 @@ def load_model():
     artifact_path = "ARIMA_ETHUSD"
     model_name = "ARIMA-FORECASTING-MODEL"
 
-    print('Before fetching version')
-
     try:
         print("Page request initiated")
         page = requests.get('http://127.0.0.1:5000')
-        print("Request completed!!!!", page.status_code)
+        print(f"MLFlow server status code: {page.status_code}")
     except Exception as e:
-        print("Server Not running")
+        print("MLFlow server not running")
         page = None
 
     if page and page.status_code == 200:
 
-        # logged_model = f'runs:/{latest_version_info[0].run_id}/model'
-        # loaded_model = mlflow.statsmodels.load_model(logged_model)
-
         logged_model = get_latest_info()
-
         print(f"Logged Model: {logged_model}")
-
-        # f"models:/{model_name}/{model_version}"
-
-        print('After fetching version')
         loaded_model = mlflow.statsmodels.load_model(logged_model)
-        print('end of model')
 
     else:
-
         loaded_model = ARIMAResults.load('model/model.pkl')
 
     return loaded_model
@@ -109,7 +107,7 @@ def landing_page():
 def pipe():
 
     latest_file = newest(r"data")
-    print(f"Newest file: {latest_file}")
+    print(f"Latest data file: {latest_file}")
     df = pd.read_csv(latest_file)
     df = list(map(list, df.itertuples(index=False)))
     return {"res":df}
@@ -132,7 +130,7 @@ def predict_endpoint():
 
     datelist = []
 
-    print(f"Predictions are: {pred}")
+    print(f"Predictions: {pred}")
 
     for i in range(1, int(timestamp)+1):
         datelist.append([pred[i-1], (current+timedelta(days=i)).date()])
